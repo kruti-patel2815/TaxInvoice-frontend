@@ -19,15 +19,28 @@ function InvoiceModal({ invoice, onClose }) {
 
   useEffect(() => {
     if (invoice) {
-      setFormData(invoice);
+      setFormData({
+        ...invoice,
+        _id: invoice._id
+      });
     }
   }, [invoice]);
 
   const handleChange = (e) => {
-    setFormData({
+    const { name, value } = e.target;
+
+    const numericFields = ["discount", "CGST", "SGST", "IGST"];
+
+    const updatedData = {
       ...formData,
-      [e.target.name]: e.target.value
-    });
+      [name]: numericFields.includes(name) ? Number(value) : value
+    };
+
+    setFormData(updatedData);
+
+    if (numericFields.includes(name)) {
+      calculateTotal(updatedData.items, updatedData);
+    }
   };
 
   const handleItemChange = (index, field, value) => {
@@ -85,16 +98,16 @@ function InvoiceModal({ invoice, onClose }) {
     return word.trim();
   }
 
-  const calculateTotal = (items) => {
+  const calculateTotal = (items, data = formData) => {
+
     let total = items.reduce((sum, item) => sum + (item.Amount || 0), 0);
 
-
-    let discountVal = (total * (formData.discount || 0)) / 100;
+    let discountVal = (total * (data.discount || 0)) / 100;
     let taxable = total - discountVal;
 
-    let cgst = (taxable * (formData.CGST || 0)) / 100;
-    let sgst = (taxable * (formData.SGST || 0)) / 100;
-    let igst = (taxable * (formData.IGST || 0)) / 100;
+    let cgst = (taxable * (data.CGST || 0)) / 100;
+    let sgst = (taxable * (data.SGST || 0)) / 100;
+    let igst = (taxable * (data.IGST || 0)) / 100;
 
     let finalTotal = taxable + cgst + sgst + igst;
     let roundedTotal = Math.round(finalTotal);
@@ -105,11 +118,10 @@ function InvoiceModal({ invoice, onClose }) {
       totalAmount: total,
       taxableValue: taxable,
       invoiceTotalBefore: finalTotal,
-      invoiceTotalAfter: Math.round(finalTotal),
+      invoiceTotalAfter: roundedTotal,
       amountWords: words
     }));
   };
-
   const handleGSTChange = (type, value) => {
     if (type === 'IGST') {
       setFormData({
@@ -142,27 +154,24 @@ function InvoiceModal({ invoice, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    calculateTotal(formData.items);
+    const isEdit = !!formData._id;
+
+    const url = isEdit
+      ? `${API_URL}/invoice/update/${formData._id}`
+      : `${API_URL}/invoice/create`;
+
+    const method = isEdit ? "PUT" : "POST";
 
     try {
-      if (invoice) {
+      await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-        await fetch(`${API_URL}/invoice/update/${invoice._id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        });
-      } else {
-
-        await fetch(`${API_URL}/invoice/create`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        });
-      }
       onClose();
     } catch (error) {
-      console.error('Error saving invoice:', error);
+      console.error("Error saving invoice:", error);
     }
   };
 
@@ -171,7 +180,7 @@ function InvoiceModal({ invoice, onClose }) {
       <div className="modal-dialog modal-xl">
         <div className="modal-content">
           <div className="modal-header">
-            
+
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
           <div className="modal-body">
@@ -278,8 +287,13 @@ function InvoiceModal({ invoice, onClose }) {
                     <td colSpan="7" className="text-center">Amount (in words)</td>
                     <td colSpan="2">Dis (00 %)</td>
                     <td>
-                      <input type="number" className="form-control" name="discount"
-                        value={formData.discount} onChange={handleChange} onBlur={() => calculateTotal(formData.items)} />
+                      <input
+                        type="number"
+                        className="form-control"
+                        name="discount"
+                        value={formData.discount}
+                        onChange={handleChange}
+                      />
                     </td>
                   </tr>
 

@@ -37,16 +37,16 @@ function Home() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this invoice?')) {
-      try {
-        await fetch(`${API_URL}/invoice/delete/${id}`, {
-          method: 'DELETE'
-        });
-        loadInvoices();
-      } catch (error) {
-        console.error('Error deleting:', error);
-      }
+
+    try {
+      await fetch(`${API_URL}/invoice/delete/${id}`, {
+        method: 'DELETE'
+      });
+      loadInvoices();
+    } catch (error) {
+      console.error('Error deleting:', error);
     }
+
   };
 
   const handleViewItems = (invoice) => {
